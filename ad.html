@@ -131,8 +131,7 @@
 <body>
 
 <div class="panel">
-  <h1>성적 포스터 · 이름만 바꿔 저장</h1>
-  <div class="row"><label for="f-name">학생</label><input id="f-name" value="○ ○ ○"></div>
+  <h1>광고용 성적 포스터</h1>
   <div class="row"><label for="sel-school">학교</label>
     <select id="sel-school"></select></div>
   <div class="row"><label for="f-school">표기</label><input id="f-school" value="상명고 1학년"></div>
@@ -158,7 +157,7 @@
     <button class="ghost" id="btn-print">A4 인쇄</button>
     <button class="ghost" id="btn-reset">초기화</button>
   </div>
-  <p class="hint">A4 인쇄 시 여백 없음 · 배경 그래픽 켜기.</p>
+  <p class="hint">학생 이름·시험명 없는 홍보용. A4 인쇄 시 여백 없음 · 배경 그래픽 켜기.</p>
 </div>
 
 <div class="stage" id="stage">
@@ -395,7 +394,7 @@ function applyTheme(){
 selTheme.onchange=applyTheme;
 
 /* 입력 */
-const map={'f-name':'p-name','f-school':'p-school','f-year':'p-year','f-head':'p-head','f-sub':'p-sub'};
+const map={'f-school':'p-school','f-year':'p-year','f-head':'p-head','f-sub':'p-sub'};
 const defaults={};
 Object.keys(map).forEach(k=>{const inp=document.getElementById(k);defaults[k]=inp.value;
   inp.addEventListener('input',()=>{
@@ -443,8 +442,8 @@ document.getElementById('btn-save').onclick=async()=>{
   try{
     const canvas=await html2canvas(p,{backgroundColor:null,scale:EXPORT_SCALE,width:1080,height:PH,useCORS:true});
     const a=document.createElement('a');
-    const nm=document.getElementById('f-name').value.replace(/\s/g,'')||'student';
-    a.download=`엠플랜_${document.getElementById('f-school').value}_${nm}.png`;
+    const nm=document.getElementById('f-head').value.replace(/\s/g,'');
+    a.download=`엠플랜_광고_${document.getElementById('f-school').value}_${nm}.png`;
     a.href=canvas.toDataURL('image/png');a.click();
   }catch(e){alert('저장 실패');}
   finally{p.classList.remove('exporting');p.style.transform=prev;btn.textContent=label;btn.disabled=false;}
