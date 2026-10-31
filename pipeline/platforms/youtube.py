@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-CATEGORY_EDUCATION = "27"
+CATEGORY = os.environ.get("YOUTUBE_CATEGORY") or "27"  # 27 교육, 19 여행
 
 
 def _client():
@@ -34,7 +34,7 @@ def post_youtube(video: Path, title: str, caption: str, hashtags: list) -> dict:
             "title": title[:100],
             "description": description[:5000],
             "tags": hashtags[:30],
-            "categoryId": CATEGORY_EDUCATION,
+            "categoryId": CATEGORY,
             "defaultLanguage": "ko",
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},

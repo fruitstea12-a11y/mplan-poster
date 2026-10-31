@@ -6,7 +6,7 @@
 > 네이버 클립은 공식 업로드 API가 없어 자동화 불가 → 네이버 앱에서 수동 업로드.
 
 ```
-[구글드라이브/쇼츠업로드]  →  GitHub Actions (매시 17분)  →  인스타 / 페북 / 유튜브
+[구글드라이브/쇼츠업로드_계정]  →  GitHub Actions (매시 17분)  →  인스타 / 페북 / 유튜브
         영상.mp4 + 영상.txt                                  ↓
                                               [구글드라이브/쇼츠완료] 로 자동 이동
 ```
@@ -92,18 +92,32 @@
 
 **Settings → Secrets and variables → Actions**
 
+계정이 2개(엠플랜·다여니)라 계정별 값은 이름 끝에 `_MPLAN` / `_TRAVEL` 을 붙입니다.
+값이 없는 계정·플랫폼은 실패하지 않고 **건너뜁니다** → 한쪽만 먼저 세팅해도 됩니다.
+
+**공용 (1번만)**
+
 | 종류 | 이름 | 값 |
 |---|---|---|
 | Secret | `GOOGLE_CLIENT_ID` | client_secret.json 의 client_id |
 | Secret | `GOOGLE_CLIENT_SECRET` | client_secret.json 의 client_secret |
 | Secret | `DRIVE_REFRESH_TOKEN` | 2-5 drive 결과 |
-| Secret | `YOUTUBE_REFRESH_TOKEN` | 2-5 youtube 결과 |
-| Secret | `META_PAGE_TOKEN` | 3-5 페이지 토큰 |
-| Variable | `DRIVE_INBOX_ID` | 쇼츠업로드 폴더 ID |
-| Variable | `DRIVE_DONE_ID` | 쇼츠완료 폴더 ID |
-| Variable | `IG_USER_ID` | 3-6 |
-| Variable | `FB_PAGE_ID` | 3-5 |
-| Variable | `ENABLED_PLATFORMS` | (선택) 예: `instagram,facebook` — 유튜브 심사 전엔 빼두기 |
+
+**계정별** (`XX` 자리에 `MPLAN` 또는 `TRAVEL`)
+
+| 종류 | 이름 | 값 |
+|---|---|---|
+| Variable | `DRIVE_INBOX_ID_XX` | 그 계정의 업로드 폴더 ID (예: `쇼츠업로드_엠플랜`, `쇼츠업로드_다여니`) |
+| Variable | `DRIVE_DONE_ID_XX` | 그 계정의 완료 폴더 ID |
+| Secret | `META_PAGE_TOKEN_XX` | 3-5 페이지 토큰 (페이지마다 따로 발급) |
+| Variable | `IG_USER_ID_XX` | 3-6 |
+| Variable | `FB_PAGE_ID_XX` | 3-5 |
+| Secret | `YOUTUBE_REFRESH_TOKEN_XX` | 2-5 youtube 결과 (다여니는 유튜브 없으면 생략) |
+| Variable | `YOUTUBE_CATEGORY_XX` | (선택) 27 교육(기본) / 19 여행 |
+| Variable | `ENABLED_PLATFORMS_XX` | (선택) 예: 다여니 `instagram,facebook` |
+
+- 같은 Meta 앱 하나로 두 페이지 토큰을 모두 발급할 수 있습니다 (`GET /me/accounts` 응답에 페이지별로 나옴).
+- 드라이브는 한 구글 계정 안에 폴더 4개(계정별 업로드·완료)를 만들면 됩니다.
 
 ### 5) 실행
 

@@ -24,9 +24,18 @@ IG_CAPTION_LIMIT = 2200
 NAMES = {"instagram": "인스타", "facebook": "페북", "youtube": "유튜브"}
 
 
+REQUIRED_ENV = {
+    "instagram": ["META_PAGE_TOKEN", "IG_USER_ID"],
+    "facebook": ["META_PAGE_TOKEN", "FB_PAGE_ID"],
+    "youtube": ["YOUTUBE_REFRESH_TOKEN", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+}
+
+
 def enabled_platforms():
-    raw = os.environ.get("ENABLED_PLATFORMS", "instagram,facebook,youtube")
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    """ENABLED_PLATFORMS 중 키가 실제로 등록된 플랫폼만. 키 없는 플랫폼은 실패 대신 건너뜀."""
+    raw = os.environ.get("ENABLED_PLATFORMS") or "instagram,facebook,youtube"
+    wanted = [p.strip() for p in raw.split(",") if p.strip()]
+    return [p for p in wanted if all(os.environ.get(k) for k in REQUIRED_ENV.get(p, []))]
 
 
 def post(platform, video, post_meta):
@@ -79,6 +88,7 @@ def run(drive, dry_run=False):
             with tempfile.TemporaryDirectory() as tmp:
                 local = drive.download(v, Path(tmp) / v["name"])
                 for p in pending:
+                    had_error_before = had_error
                     try:
                         res = post(p, local, meta)
                         drive.set_props(v, {f"{p}_id": str(res["id"]), f"{p}_url": (res.get("url") or "")[:100]})
@@ -88,6 +98,7 @@ def run(drive, dry_run=False):
                         msg = str(e)
                         traceback.print_exc()
                         if "quotaExceeded" in msg:
+                            had_error = had_error_before
                             report.append(f"⏳ {v['name']} → {NAMES[p]}: 일일 쿼터 초과, 내일 재시도")
                             continue
                         fails = int(v.get("appProperties", {}).get(f"{p}_fail", 0)) + 1
@@ -96,7 +107,11 @@ def run(drive, dry_run=False):
                         report.append(f"❌ {v['name']} → {NAMES[p]} 실패 {fails}/{MAX_FAIL}{tail}: {msg[:300]}")
 
         props = v.get("appProperties") or {}
-        if all(props.get(f"{p}_id") for p in targets):
+        stuck = [p for p in targets if not props.get(f"{p}_id") and int(props.get(f"{p}_fail", 0)) >= MAX_FAIL]
+        if stuck and not pending:
+            report.append(f"⛔ {v['name']}: {[NAMES[p] for p in stuck]} 3회 실패로 멈춤 — 드라이브 파일 속성 확인 필요")
+
+        if targets and all(props.get(f"{p}_id") for p in targets):
             drive.move_done(v)
             drive.move_done(cap_file)
             report.append(f"📦 {v['name']}: 전체 게시 완료 → 완료 폴더로 이동")
@@ -110,16 +125,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    account = os.environ.get("ACCOUNT_NAME", "")
 
-    from drive import Drive
-    report, had_error = run(Drive(), dry_run=args.dry_run)
+    missing = [k for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "DRIVE_REFRESH_TOKEN",
+                           "DRIVE_INBOX_ID", "DRIVE_DONE_ID") if not os.environ.get(k)]
+    if missing:
+        report, had_error = [f"⚙️ 세팅 전이라 건너뜀 (없는 값: {', '.join(missing)})"], False
+    elif not enabled_platforms():
+        report, had_error = ["⚙️ 게시할 플랫폼 키가 아직 없음 → 건너뜀"], False
+    else:
+        from drive import Drive
+        report, had_error = run(Drive(), dry_run=args.dry_run)
+        report.insert(0, f"게시 대상: {[NAMES[p] for p in enabled_platforms()]}")
 
     text = "\n".join(f"- {r}" for r in report)
     print(text)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as fh:
-            fh.write(f"## 쇼츠 자동 게시 결과 ({datetime.now(KST):%Y-%m-%d %H:%M} KST)\n\n{text}\n")
+            fh.write(f"## 쇼츠 자동 게시 결과 {account} ({datetime.now(KST):%Y-%m-%d %H:%M} KST)\n\n{text}\n")
     sys.exit(1 if had_error else 0)
 
 

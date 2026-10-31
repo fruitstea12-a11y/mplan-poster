@@ -2,7 +2,7 @@ name: 쇼츠 자동 게시
 
 on:
   schedule:
-    - cron: "17 * * * *"   # 매시 17분 (UTC 기준, 한국시간도 매시 17분)
+    - cron: "17 * * * *"   # 매시 17분
   workflow_dispatch:
     inputs:
       dry_run:
@@ -16,6 +16,16 @@ concurrency:
 
 jobs:
   publish:
+    # 계정별로 따로 실행. 값 이름 끝에 _MPLAN / _TRAVEL 을 붙여 등록한다.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - account: MPLAN    # 엠플랜 학원
+            label: 엠플랜
+          - account: TRAVEL   # 다여니 여행
+            label: 다여니
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -28,14 +38,18 @@ jobs:
       - run: pip install -r pipeline/requirements.txt
       - name: 게시
         env:
+          ACCOUNT_NAME: ${{ matrix.label }}
+          # 구글 클라이언트·드라이브 토큰은 두 계정 공용
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          DRIVE_INBOX_ID: ${{ vars.DRIVE_INBOX_ID }}
-          DRIVE_DONE_ID: ${{ vars.DRIVE_DONE_ID }}
-          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
-          IG_USER_ID: ${{ vars.IG_USER_ID }}
-          FB_PAGE_ID: ${{ vars.FB_PAGE_ID }}
-          ENABLED_PLATFORMS: ${{ vars.ENABLED_PLATFORMS || 'instagram,facebook,youtube' }}
+          # 계정별 값
+          DRIVE_INBOX_ID: ${{ vars[format('DRIVE_INBOX_ID_{0}', matrix.account)] }}
+          DRIVE_DONE_ID: ${{ vars[format('DRIVE_DONE_ID_{0}', matrix.account)] }}
+          META_PAGE_TOKEN: ${{ secrets[format('META_PAGE_TOKEN_{0}', matrix.account)] }}
+          IG_USER_ID: ${{ vars[format('IG_USER_ID_{0}', matrix.account)] }}
+          FB_PAGE_ID: ${{ vars[format('FB_PAGE_ID_{0}', matrix.account)] }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_{0}', matrix.account)] }}
+          YOUTUBE_CATEGORY: ${{ vars[format('YOUTUBE_CATEGORY_{0}', matrix.account)] }}
+          ENABLED_PLATFORMS: ${{ vars[format('ENABLED_PLATFORMS_{0}', matrix.account)] }}
         run: python pipeline/publish.py ${{ inputs.dry_run && '--dry-run' || '' }}
