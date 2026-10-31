@@ -55,8 +55,7 @@
 
 ### 1) 구글드라이브 폴더
 
-1. 드라이브에 `쇼츠업로드`, `쇼츠완료` 폴더 생성
-2. 각 폴더를 열어 주소창의 `folders/` 뒤 문자열 복사 → 폴더 ID
+✅ 생성 완료 — 내 드라이브/쇼츠자동게시/ 안에 계정별 업로드·완료 폴더 4개. ID는 워크플로에 들어 있음.
 
 ### 2) 구글 클라우드 (유튜브 + 드라이브 공용)
 
@@ -107,17 +106,15 @@
 
 | 종류 | 이름 | 값 |
 |---|---|---|
-| Variable | `DRIVE_INBOX_ID_XX` | 그 계정의 업로드 폴더 ID (예: `쇼츠업로드_엠플랜`, `쇼츠업로드_다여니`) |
-| Variable | `DRIVE_DONE_ID_XX` | 그 계정의 완료 폴더 ID |
 | Secret | `META_PAGE_TOKEN_XX` | 3-5 페이지 토큰 (페이지마다 따로 발급) |
 | Variable | `IG_USER_ID_XX` | 3-6 |
 | Variable | `FB_PAGE_ID_XX` | 3-5 |
 | Secret | `YOUTUBE_REFRESH_TOKEN_XX` | 2-5 youtube 결과 (다여니는 유튜브 없으면 생략) |
-| Variable | `YOUTUBE_CATEGORY_XX` | (선택) 27 교육(기본) / 19 여행 |
-| Variable | `ENABLED_PLATFORMS_XX` | (선택) 예: 다여니 `instagram,facebook` |
 
 - 같은 Meta 앱 하나로 두 페이지 토큰을 모두 발급할 수 있습니다 (`GET /me/accounts` 응답에 페이지별로 나옴).
-- 드라이브는 한 구글 계정 안에 폴더 4개(계정별 업로드·완료)를 만들면 됩니다.
+- 드라이브 폴더는 생성 완료: **내 드라이브/쇼츠자동게시/** 안 `쇼츠업로드_엠플랜`·`쇼츠완료_엠플랜`·`쇼츠업로드_다여니`·`쇼츠완료_다여니`. 폴더 ID는 워크플로에 들어 있어 따로 등록할 필요 없음.
+- 게시 채널 기본값: 엠플랜 = 인스타·페북·유튜브, 다여니 = 인스타·페북 (변수 `ENABLED_PLATFORMS_XX` 로 변경 가능).
+- **드라이브 토큰(`DRIVE_REFRESH_TOKEN`)은 fruitstea12@gmail.com 으로 로그인해서 발급** (폴더 소유 계정).
 
 ### 5) 실행
 

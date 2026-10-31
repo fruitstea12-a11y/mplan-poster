@@ -21,10 +21,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # 드라이브 폴더: 내 드라이브/쇼츠자동게시/ 안 (변수 DRIVE_INBOX_ID_XX 로 덮어쓸 수 있음)
           - account: MPLAN    # 엠플랜 학원
             label: 엠플랜
+            inbox: 1ahUOTu_f1Gstql5wRqFlJXuEOb6i9d0t   # 쇼츠업로드_엠플랜
+            done: 1ygsuVH7qAnOVY4_Se5lqcEGTrbOmPUaw    # 쇼츠완료_엠플랜
+            platforms: instagram,facebook,youtube
+            category: "27"
           - account: TRAVEL   # 다여니 여행
             label: 다여니
+            inbox: 1UJSssAMOUzfMJ3f4UQkvm67aQC12dP7o   # 쇼츠업로드_다여니
+            done: 1o8UpxJc-fGM_JppeoHsIMG6vyqrCzfID    # 쇼츠완료_다여니
+            platforms: instagram,facebook
+            category: "19"
     name: ${{ matrix.label }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -44,12 +53,12 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
           # 계정별 값
-          DRIVE_INBOX_ID: ${{ vars[format('DRIVE_INBOX_ID_{0}', matrix.account)] }}
-          DRIVE_DONE_ID: ${{ vars[format('DRIVE_DONE_ID_{0}', matrix.account)] }}
+          DRIVE_INBOX_ID: ${{ vars[format('DRIVE_INBOX_ID_{0}', matrix.account)] || matrix.inbox }}
+          DRIVE_DONE_ID: ${{ vars[format('DRIVE_DONE_ID_{0}', matrix.account)] || matrix.done }}
           META_PAGE_TOKEN: ${{ secrets[format('META_PAGE_TOKEN_{0}', matrix.account)] }}
           IG_USER_ID: ${{ vars[format('IG_USER_ID_{0}', matrix.account)] }}
           FB_PAGE_ID: ${{ vars[format('FB_PAGE_ID_{0}', matrix.account)] }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_{0}', matrix.account)] }}
-          YOUTUBE_CATEGORY: ${{ vars[format('YOUTUBE_CATEGORY_{0}', matrix.account)] }}
-          ENABLED_PLATFORMS: ${{ vars[format('ENABLED_PLATFORMS_{0}', matrix.account)] }}
+          YOUTUBE_CATEGORY: ${{ vars[format('YOUTUBE_CATEGORY_{0}', matrix.account)] || matrix.category }}
+          ENABLED_PLATFORMS: ${{ vars[format('ENABLED_PLATFORMS_{0}', matrix.account)] || matrix.platforms }}
         run: python pipeline/publish.py ${{ inputs.dry_run && '--dry-run' || '' }}
