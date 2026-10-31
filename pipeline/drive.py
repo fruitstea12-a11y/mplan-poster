@@ -71,6 +71,18 @@ class Drive:
         self.svc.files().update(fileId=f["id"], addParents=self.done, removeParents=self.inbox,
                                 supportsAllDrives=True).execute()
 
+    def make_public(self, f) -> str:
+        """표지 이미지를 잠시 '링크 있는 사람 보기'로 열고 직접 다운로드 URL을 돌려준다."""
+        perm = self.svc.permissions().create(fileId=f["id"], body={"type": "anyone", "role": "reader"},
+                                             fields="id", supportsAllDrives=True).execute()
+        f["_public_perm"] = perm["id"]
+        return f"https://drive.usercontent.google.com/download?id={f['id']}&export=download"
+
+    def make_private(self, f):
+        if f.get("_public_perm"):
+            self.svc.permissions().delete(fileId=f["id"], permissionId=f.pop("_public_perm"),
+                                          supportsAllDrives=True).execute()
+
     def _fetch(self, req) -> bytes:
         buf = io.BytesIO()
         dl = MediaIoBaseDownload(buf, req)

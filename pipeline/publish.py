@@ -22,6 +22,7 @@ from caption import KST, parse  # noqa: E402
 MAX_FAIL = 3
 IG_CAPTION_LIMIT = 2200
 NAMES = {"instagram": "인스타", "facebook": "페북", "youtube": "유튜브"}
+COVER_SUFFIX = "_cover"   # 표지 이미지: 영상이름_cover.jpg
 
 
 REQUIRED_ENV = {
@@ -38,13 +39,26 @@ def enabled_platforms():
     return [p for p in wanted if all(os.environ.get(k) for k in REQUIRED_ENV.get(p, []))]
 
 
-def post(platform, video, post_meta):
+def ai_default():
+    return (os.environ.get("AI_LABEL") or "").strip().lower() in ("1", "true", "yes", "예")
+
+
+def post(platform, video, post_meta, cover=None, cover_url=None):
     if platform == "instagram":
         from platforms.meta import post_instagram
-        return post_instagram(video, post_meta["caption"][:IG_CAPTION_LIMIT])
+        ai = post_meta["ai"] if post_meta.get("ai") is not None else ai_default()
+        caption = post_meta["caption"][:IG_CAPTION_LIMIT]
+        try:
+            return post_instagram(video, caption, cover_url=cover_url,
+                                  cover_sec=post_meta.get("cover_sec"), ai=ai)
+        except RuntimeError as e:
+            if not cover_url:
+                raise
+            print(f"표지 이미지로 실패 → 표지 없이 재시도: {e}")  # 게시가 표지 때문에 막히지 않게
+            return post_instagram(video, caption, cover_sec=post_meta.get("cover_sec"), ai=ai)
     if platform == "facebook":
         from platforms.meta import post_facebook
-        return post_facebook(video, post_meta["caption"], post_meta["title"])
+        return post_facebook(video, post_meta["caption"], post_meta["title"], cover=cover)
     if platform == "youtube":
         from platforms.youtube import post_youtube
         return post_youtube(video, post_meta["title"], post_meta["caption"], post_meta["hashtags"])
@@ -60,7 +74,10 @@ def run(drive, dry_run=False):
     enabled = enabled_platforms()
     files = drive.list_inbox()
     videos = [f for f in files if f["mimeType"].startswith("video/")]
-    captions = {stem(f["name"]): f for f in files if not f["mimeType"].startswith("video/")}
+    covers = {stem(f["name"])[:-len(COVER_SUFFIX)]: f for f in files
+              if f["mimeType"].startswith("image/") and stem(f["name"]).endswith(COVER_SUFFIX)}
+    captions = {stem(f["name"]): f for f in files
+                if not f["mimeType"].startswith(("video/", "image/"))}
 
     report, had_error = [], False
     for v in sorted(videos, key=lambda f: f["name"]):
@@ -80,19 +97,38 @@ def run(drive, dry_run=False):
         pending = [p for p in targets
                    if not props.get(f"{p}_id") and int(props.get(f"{p}_fail", 0)) < MAX_FAIL]
 
+        cover_file = covers.get(key)
+        ai_on = meta["ai"] if meta.get("ai") is not None else ai_default()
+        extra = []
+        if cover_file:
+            extra.append(f"표지 이미지 {cover_file['name']}")
+        elif meta.get("cover_sec") is not None:
+            extra.append(f"표지 {meta['cover_sec']}초 지점")
+        if ai_on:
+            extra.append("AI 레이블")
+        extra_txt = f" ({', '.join(extra)})" if extra else ""
+
         if dry_run:
-            report.append(f"🧪 {v['name']}: 게시 예정 {[NAMES[p] for p in pending]} / 제목: {meta['title']}")
+            report.append(f"🧪 {v['name']}: 게시 예정 {[NAMES[p] for p in pending]}{extra_txt} / 제목: {meta['title']}")
             continue
 
         if pending:
             with tempfile.TemporaryDirectory() as tmp:
                 local = drive.download(v, Path(tmp) / v["name"])
+                local_cover, cover_url = None, None
+                if cover_file:
+                    local_cover = drive.download(cover_file, Path(tmp) / cover_file["name"])
+                    if "instagram" in pending:
+                        try:
+                            cover_url = drive.make_public(cover_file)
+                        except Exception as e:  # noqa: BLE001
+                            report.append(f"⚠️ 표지 공개 링크 실패, 표지 없이 진행: {str(e)[:150]}")
                 for p in pending:
                     had_error_before = had_error
                     try:
-                        res = post(p, local, meta)
+                        res = post(p, local, meta, cover=local_cover, cover_url=cover_url)
                         drive.set_props(v, {f"{p}_id": str(res["id"]), f"{p}_url": (res.get("url") or "")[:100]})
-                        report.append(f"✅ {v['name']} → {NAMES[p]}: {res.get('url')}")
+                        report.append(f"✅ {v['name']} → {NAMES[p]}{extra_txt}: {res.get('url')}")
                     except Exception as e:  # noqa: BLE001
                         had_error = True
                         msg = str(e)
@@ -106,6 +142,12 @@ def run(drive, dry_run=False):
                         tail = " (재시도 중단, 수동 확인 필요)" if fails >= MAX_FAIL else ""
                         report.append(f"❌ {v['name']} → {NAMES[p]} 실패 {fails}/{MAX_FAIL}{tail}: {msg[:300]}")
 
+                if cover_file:
+                    try:
+                        drive.make_private(cover_file)
+                    except Exception:  # noqa: BLE001
+                        pass
+
         props = v.get("appProperties") or {}
         stuck = [p for p in targets if not props.get(f"{p}_id") and int(props.get(f"{p}_fail", 0)) >= MAX_FAIL]
         if stuck and not pending:
@@ -114,6 +156,8 @@ def run(drive, dry_run=False):
         if targets and all(props.get(f"{p}_id") for p in targets):
             drive.move_done(v)
             drive.move_done(cap_file)
+            if cover_file:
+                drive.move_done(cover_file)
             report.append(f"📦 {v['name']}: 전체 게시 완료 → 완료 폴더로 이동")
 
     if not videos:

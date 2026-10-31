@@ -5,6 +5,8 @@
     제목: 중3 겨울방학, 이것 모르면 고1 수학 무너집니다
     예약: 2026-11-03 18:00
     채널: 인스타, 유튜브, 페북
+    표지: 2.5          (영상 2.5초 지점을 표지로. 표지 이미지 파일이 있으면 그게 우선)
+    AI: 예             (인스타 'AI 정보' 레이블. 없으면 계정 기본값)
     ---
     캡션 본문...
     #엠플랜 #수학학원
@@ -23,7 +25,11 @@ ALIASES = {
     "유튜브": "youtube", "youtube": "youtube", "yt": "youtube", "쇼츠": "youtube",
 }
 KEYS = {"제목": "title", "title": "title", "예약": "publish_at", "publish_at": "publish_at",
-        "채널": "platforms", "platforms": "platforms"}
+        "채널": "platforms", "platforms": "platforms",
+        "표지": "cover_sec", "cover": "cover_sec",
+        "ai": "ai", "ai라벨": "ai", "ai 라벨": "ai", "ai레이블": "ai"}
+YES = {"예", "네", "o", "y", "yes", "true", "1", "on", "표시"}
+NO = {"아니오", "아니요", "x", "n", "no", "false", "0", "off", "없음"}
 
 
 def parse(text: str, fallback_title: str = "") -> dict:
@@ -53,7 +59,19 @@ def parse(text: str, fallback_title: str = "") -> dict:
     if meta.get("publish_at"):
         publish_at = datetime.strptime(meta["publish_at"], "%Y-%m-%d %H:%M").replace(tzinfo=KST)
 
+    cover_sec = None
+    if meta.get("cover_sec"):
+        m = re.search(r"\d+(?:\.\d+)?", meta["cover_sec"])
+        cover_sec = float(m.group()) if m else None
+
+    ai = None  # None = 계정 기본값 사용
+    if meta.get("ai"):
+        v = meta["ai"].strip().lower()
+        ai = True if v in YES else False if v in NO else None
+
     return {
+        "cover_sec": cover_sec,
+        "ai": ai,
         "title": _strip_tags(title)[:100] or fallback_title[:100],
         "caption": body,
         "hashtags": re.findall(r"#([^\s#]+)", body),
