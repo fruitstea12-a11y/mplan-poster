@@ -28,12 +28,14 @@ jobs:
             done: 1ygsuVH7qAnOVY4_Se5lqcEGTrbOmPUaw    # 쇼츠완료_엠플랜
             platforms: instagram,facebook,youtube
             category: "27"
+            ai_label: "false"
           - account: TRAVEL   # 다여니 여행
             label: 다여니
             inbox: 1UJSssAMOUzfMJ3f4UQkvm67aQC12dP7o   # 쇼츠업로드_다여니
             done: 1o8UpxJc-fGM_JppeoHsIMG6vyqrCzfID    # 쇼츠완료_다여니
             platforms: instagram,facebook
             category: "19"
+            ai_label: "true"     # AI 생성 영상 → 인스타 'AI 정보' 레이블 기본 켬 (캡션 'AI: 아니오'로 끔)
             ig_user: "17841474368779883"   # dayeoni.trip
             fb_page: "1428425777010793"    # 여니의 국내 해외 힐링숙소 페이지
     name: ${{ matrix.label }}
@@ -62,5 +64,6 @@ jobs:
           FB_PAGE_ID: ${{ vars[format('FB_PAGE_ID_{0}', matrix.account)] || matrix.fb_page }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_{0}', matrix.account)] }}
           YOUTUBE_CATEGORY: ${{ vars[format('YOUTUBE_CATEGORY_{0}', matrix.account)] || matrix.category }}
+          AI_LABEL: ${{ vars[format('AI_LABEL_{0}', matrix.account)] || matrix.ai_label }}
           ENABLED_PLATFORMS: ${{ vars[format('ENABLED_PLATFORMS_{0}', matrix.account)] || matrix.platforms }}
         run: python pipeline/publish.py ${{ inputs.dry_run && '--dry-run' || '' }}

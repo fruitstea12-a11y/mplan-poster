@@ -37,15 +37,23 @@ def _upload_binary(url, video: Path):
     return _check(r)
 
 
-def post_instagram(video: Path, caption: str) -> dict:
+def post_instagram(video: Path, caption: str, cover_url: str = None, cover_sec: float = None,
+                   ai: bool = False) -> dict:
     ig = os.environ["IG_USER_ID"]
-    c = _check(requests.post(f"{GRAPH}/{ig}/media", timeout=60, data={
+    data = {
         "media_type": "REELS",
         "upload_type": "resumable",
         "caption": caption,
         "share_to_feed": "true",
         "access_token": _token(),
-    }))
+    }
+    if cover_url:
+        data["cover_url"] = cover_url          # 표지 이미지 (공개 URL)
+    elif cover_sec is not None:
+        data["thumb_offset"] = str(int(cover_sec * 1000))  # 영상 n초 지점
+    if ai:
+        data["is_ai_generated"] = "true"       # 'AI 정보' 레이블
+    c = _check(requests.post(f"{GRAPH}/{ig}/media", timeout=60, data=data))
     container = c["id"]
     _upload_binary(f"https://rupload.facebook.com/ig-api-upload/{API_VER}/{container}", video)
 
@@ -68,7 +76,7 @@ def post_instagram(video: Path, caption: str) -> dict:
     return {"id": pub["id"], "url": link.get("permalink")}
 
 
-def post_facebook(video: Path, caption: str, title: str = "") -> dict:
+def post_facebook(video: Path, caption: str, title: str = "", cover: Path = None) -> dict:
     page = os.environ["FB_PAGE_ID"]
     start = _check(requests.post(f"{GRAPH}/{page}/video_reels", timeout=60, data={
         "upload_phase": "start", "access_token": _token()}))
@@ -83,4 +91,12 @@ def post_facebook(video: Path, caption: str, title: str = "") -> dict:
         "title": title,
         "access_token": _token(),
     }))
+    if cover:
+        try:  # 표지 지정 실패해도 게시는 성공으로 둔다
+            with open(cover, "rb") as f:
+                _check(requests.post(f"{GRAPH}/{vid}/thumbnails", timeout=120,
+                                     data={"is_preferred": "true", "access_token": _token()},
+                                     files={"source": f}))
+        except Exception as e:  # noqa: BLE001
+            print(f"페북 표지 지정 실패(게시는 완료): {e}")
     return {"id": vid, "url": f"https://www.facebook.com/reel/{vid}"}
